@@ -17,9 +17,12 @@ namespace grate.Migration;
 
 public class OracleDatabase : AnsiSqlDatabase
 {
-    public OracleDatabase(ILogger<OracleDatabase> logger)
+    private readonly GrateConfiguration? _configuration;
+    
+    public OracleDatabase(ILogger<OracleDatabase> logger, GrateConfiguration? configuration = null)
         : base(logger, new OracleSyntax())
     {
+        _configuration = configuration;
     }
 
     public override bool SupportsDdlTransactions => false;
@@ -172,5 +175,31 @@ BEGIN
   SELECT {table}_seq.nextval INTO :new.id FROM dual;
 END;";
         await ExecuteNonQuery(ActiveConnection, sql, Config?.CommandTimeout);
+    }
+    
+    protected override async Task ExecuteNonQuery(DbConnection conn, string sql, int? timeout)
+    {
+        // If there is no scriptSchema configured then run the script as normal.
+        if (string.IsNullOrWhiteSpace(_configuration?.ScriptSchemaName))
+        {
+            await base.ExecuteNonQueryCore(conn, sql, timeout);
+            return;
+        }
+
+        var scriptSchema = _configuration.ScriptSchemaName;
+        var currentSchema = conn.ExecuteScalar<string>("SELECT SYS_CONTEXT( 'userenv', 'current_schema' ) FROM DUAL");
+        try
+        {
+            await conn.ExecuteAsync($"ALTER SESSION SET CURRENT_SCHEMA={scriptSchema}");
+            await base.ExecuteNonQueryCore(conn, sql, timeout);
+        }
+        finally
+        {
+            // Set the schema back to the original schema.
+            // The admin tables might live under this schema rather than the
+            // scriptSchema so we must always switch back after the script
+            // is run in this schema
+            await conn.ExecuteAsync($"ALTER SESSION SET CURRENT_SCHEMA={currentSchema}");
+        }
     }
 }

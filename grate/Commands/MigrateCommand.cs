@@ -28,6 +28,7 @@ public sealed class MigrateCommand : RootCommand
         Add(RunInTransaction());
         Add(Environment());
         Add(SchemaName());
+        Add(ScriptSchemaName());
         Add(Silent());
         Add(Version());
         Add(Drop());
@@ -191,6 +192,13 @@ the last one will expect the folders to be named 'folder1', 'folder2', and 'fold
             new[] { "--sc", "--schema", "--schemaname" },
             () => "grate",
             "The schema to use for the migration tables"
+        );
+    
+    private static Option<string> ScriptSchemaName() =>
+        new(
+            new[] { "--ssc", "--script-schema", "--scriptschemaname" },
+            () => "",
+            "The schema to use when running the GRATE migration scripts"
         );
 
     private static Option<bool> Drop() =>
