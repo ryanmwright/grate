@@ -280,6 +280,38 @@ select ''
             string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
             sql_statement_scrubbed.Should().Be(expected_scrubbed);
         }
+        
+        [Fact]
+        public void slash_between_two_packages()
+        {
+            string sql_to_match =
+                @"
+CREATE OR REPLACE PACKAGE MYPACKAGE
+BEGIN
+    -- Package header here
+END;
+/
+CREATE OR REPLACE PACKAGE BODY MYPACKAGE
+BEGIN
+    -- Package body here
+END;
+";
+            string expected_scrubbed =
+                @"
+CREATE OR REPLACE PACKAGE MYPACKAGE
+BEGIN
+    -- Package header here
+END;
+" + Batch_terminator_replacement_string + @"
+CREATE OR REPLACE PACKAGE BODY MYPACKAGE
+BEGIN
+    -- Package body here
+END;
+";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
 
     }
 
@@ -572,6 +604,114 @@ select ''
 
 " + Symbols_to_check + @" 
 */";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
+        
+        [Fact]
+        public void slash_in_plsql_block()
+        {
+            string sql_to_match =
+                @"
+BEGIN
+    L_EXPECTED_COMPLETION TIMESTAMP := L_INTERVAL_START + (P_EXPECTED_COMPLETION_MINUTES / 24 / 60);
+END;
+";
+            string expected_scrubbed =
+                @"
+BEGIN
+    L_EXPECTED_COMPLETION TIMESTAMP := L_INTERVAL_START + (P_EXPECTED_COMPLETION_MINUTES / 24 / 60);
+END;
+";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
+        
+        [Fact]
+        public void slash_in_plsql_declare_block()
+        {
+            string sql_to_match =
+                @"
+DECLARE
+    L_EXPECTED_COMPLETION TIMESTAMP TIMESTAMP := L_INTERVAL_START + (P_EXPECTED_COMPLETION_MINUTES / 24 / 60);
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Hello world!');
+END;
+";
+            string expected_scrubbed =
+                @"
+DECLARE
+    L_EXPECTED_COMPLETION TIMESTAMP TIMESTAMP := L_INTERVAL_START + (P_EXPECTED_COMPLETION_MINUTES / 24 / 60);
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Hello world!');
+END;
+";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
+        
+        [Fact]
+        public void slash_in_select_block()
+        {
+            string sql_to_match =
+                @"
+SELECT
+    MYFIELD1 / MYFIELD2
+FROM MYTABLE;
+";
+            string expected_scrubbed =
+                @"
+SELECT
+    MYFIELD1 / MYFIELD2
+FROM MYTABLE;
+";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
+        
+        [Fact]
+        public void slash_in_where_clause()
+        {
+            string sql_to_match =
+                @"
+SELECT
+    MYFIELD1, MYFIELD2
+FROM MYTABLE
+WHERE MYFIELD1 / MYFIELD2 > 5
+";
+            string expected_scrubbed =
+                @"
+SELECT
+    MYFIELD1, MYFIELD2
+FROM MYTABLE
+WHERE MYFIELD1 / MYFIELD2 > 5
+";
+            _testOutput.WriteLine(sql_to_match);
+            string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
+            sql_statement_scrubbed.Should().Be(expected_scrubbed);
+        }
+        
+        [Fact]
+        public void slash_in_where_clause_terminated_semicolon()
+        {
+            string sql_to_match =
+                @"
+SELECT
+    MYFIELD1, MYFIELD2
+FROM MYTABLE
+WHERE MYFIELD1 / MYFIELD2 > 5;
+";
+            string expected_scrubbed =
+                @"
+SELECT
+    MYFIELD1, MYFIELD2
+FROM MYTABLE
+WHERE MYFIELD1 / MYFIELD2 > 5;
+";
             _testOutput.WriteLine(sql_to_match);
             string sql_statement_scrubbed = Replacer.Replace(sql_to_match);
             sql_statement_scrubbed.Should().Be(expected_scrubbed);
